@@ -1,0 +1,38 @@
+name: Deploy Bot and Admin Panel
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Set up Docker
+      uses: docker/setup-buildx-action@v2
+
+    - name: Log in to Docker Hub
+      uses: docker/login-action@v2
+      with:
+        username: ${{ secrets.DOCKER_USERNAME }}
+        password: ${{ secrets.DOCKER_PASSWORD }}
+
+    - name: Build and push bot image
+      run: |
+        docker build -t ${{ secrets.DOCKER_USERNAME }}/schoolbot-bot ./bot
+        docker push ${{ secrets.DOCKER_USERNAME }}/schoolbot-bot
+
+    - name: Build and push admin image
+      run: |
+        docker build -t ${{ secrets.DOCKER_USERNAME }}/schoolbot-admin ./admin
+        docker push ${{ secrets.DOCKER_USERNAME }}/schoolbot-admin
+
+    - name: Deploy containers
+      run: |
+        docker run -d --name schoolbot-bot -e BOT_TOKEN=${{ secrets.BOT_TOKEN }} -e DATA_FILE=/app/data/data.json -v $(pwd)/data:/app/data ${{ secrets.DOCKER_USERNAME }}/schoolbot-bot
+        docker run -d --name schoolbot-admin -e DATA_FILE=/app/data/data.json -p 8501:8501 -v $(pwd)/data:/app/data ${{ secrets.DOCKER_USERNAME }}/schoolbot-admin
